@@ -27,11 +27,11 @@ The test data consists of 20 observations of 160 variables.
 
 #Analysis
 ##Data Cleaning
-I began the analysis by cleaning up the training data set.  A number of variables consisted largely of missing or NA data.  So I began by removing variables that contained NA values.  Also removed the `classe` variable, along with several other variables that were not likely to be predictive such as the record number, user name and timestamp data.
+I began the analysis by cleaning up the training data set.  A number of variables consisted largely of missing or NA data.  So I began by removing variables that contained NA values.  Also removed the `classe` variable, along with several other variables that were not likely to be predictive such as the record number, user name, timestamp, and the window data.
 
-I then converted the remaining variables to numeric as a number had been incorrectly read in as factor or logical variables.  I then re-added the `classe` variable to the data set.
+I then converted the remaining variables to numeric as many of them had been incorrectly read in as factor or logical variables.  I then re-added the `classe` variable to the data set.
 
-This left me with a training data set consisting of 19622 observations of 88 variables.
+This left me with a training data set consisting of 19622 observations of 86 variables.
 
 ```{r}
 setwd("C:/Users/Derek/Documents/My Dropbox/Projects/machine_learning")
@@ -39,16 +39,16 @@ train <- read.csv("pml-training.csv")
 test <- read.csv("pml-testing.csv")
 
 filteredTrain <- train[, !unlist(lapply(train, function(x) any(is.na(x))))]
-filteredTrain <- filteredTrain[, -c(1:5,93)]
+filteredTrain <- filteredTrain[, -c(1:7,93)]
 filteredTrain <- as.data.frame(lapply(filteredTrain, as.numeric))
 filteredTrain <- cbind(classe = train$classe, filteredTrain)
 dim(filteredTrain)
 ```
 
 ##Modeling
-I decided to use a the `gbm` model.  This is a stochastic gradient boosted model that is quite robust for both classification and regression.  Because it is fundamentally a decision tree based model, it is also quite good at dealing with a large number of variables without having to engage in PCA or other variable selection techniques.
+I decided to use the `gbm` package.  This is a stochastic gradient boosted model that is quite robust for both classification and regression.  Because it is fundamentally a decision tree based model, it is also quite good at dealing with a large number of variables (many of which may be non-predictive) without having to engage in PCA or other variable selection techniques.
 
-I used a standard 10-fold cross validation approach to optimize the model.  Additionally, I used a custom parameter tuning grid.  I checked the model at a 3, 5, and 7 level interaction depth, 50 through 250 trees, and both .01 and .1 shrinkage levels (essentially a "slow" and "fast" learner).
+I used a 10-fold cross validation approach to optimize the model.  Additionally, I used a custom parameter tuning grid.  I checked the model at a 3, 5, and 7 level interaction depth, 50 through 250 trees, and both .01 and .1 shrinkage levels (essentially a "slow" and "fast" learner).
 
 ```{r}
 fitControl <- trainControl(method = "cv",
@@ -72,7 +72,9 @@ gbmFit <- train(classe ~ ., data = filteredTrain,
 ```
 
 ##Final model and error estimates
-Optimal accuracy was achieved with 250 trees, an interaction depth of 7 and a shrinkage of 0.1.  This approach achieved accuracy of .9994904 on the training data.  This suggests that we're likely to see better than .99 out-of-sample accuracy given that the 10-fold cross-validation is still slightly biased towards the training data and gbm models, like many tree based models, can occassionally overfit the training data.
+Optimal accuracy was achieved with 250 trees, an interaction depth of 7 and a shrinkage of 0.1.  This approach achieved accuracy of 0.9937312 with a SD of 0.001273787 on the training data.  Additionally, the Kappa statistic is greater than 0.99.  This is a comparison of the observed accuracy to the expected accuracy (of random chance).  A Kappa statistic greater than .75 is typically considered an excellent model.  A Kappa of greater than 0.99 suggests a near perfect model.
+
+All of this suggests that we're likely to see better than .99 out-of-sample accuracy given that the 10-fold cross-validation is still slightly biased towards the training data and gbm models, like many tree based models, can occassionally overfit the training data.
 
 ```{r echo=FALSE}
 gbmFit
@@ -99,5 +101,7 @@ Once that was done, as expected, the `gbm` model exhibited high out-of-sample ac
 ```{r}
 numericTest <- as.data.frame(lapply(test, as.numeric))
 numericTest[is.na(numericTest)] <- 0
+gbmPred <- predict(gbmFit, numericTest)
+gbmPred
 
 ```
